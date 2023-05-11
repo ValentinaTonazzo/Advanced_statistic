@@ -1,0 +1,17 @@
+model {
+
+    # Likelihood
+     for (t in 1:N) {
+        mu[t] <- exp(b0 + b1*step(t-tau))
+        D[t] ~ dpois(mu[t]) 
+        }
+        
+    # a uniform prior for b0, b1
+    b0 ~ dunif(-3, 3);
+    b1 ~ dunif(-3, 3);
+    
+    # a uniform prior for tau in (1,N)
+    tau ~ dunif(1, N);
+        
+    }
+    

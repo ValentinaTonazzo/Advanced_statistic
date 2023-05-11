@@ -1,0 +1,230 @@
+---
+title: "esercizio 6"
+author: "Tonazzo Valentina"
+date: '2022-08-17'
+output: html_document
+---
+
+
+ESERCIZIO 1
+
+```{r}
+p <- 0.15 #probability of fail detecting desease
+n <- 75 #sample size 
+#A) the probaility distribution is a bynomial distribution, because there are multiple bernoulli processes due to the fact the detection can either fail or not.
+```
+
+```{r}
+y <- 6 #observed fail of detection 
+
+cat("The Frequentist estimator is y/n:", y/n,"\n")
+cat("The Bayesian estimator with a uniform prior Beta(1,1) is a/(a+b), with a = 1+y, b=n-y+1:", (1+y)/(n-y+1))
+```
+
+
+```{r}
+#bayesian computation of posterior probability, with prior Beta(mean=0.15, sig=0.14)
+m <- 0.15
+s <- 0.14 
+```
+
+With The relations $a+b+1 = m(1-m)/ \sigma^2 $ and $a+b = a/ \sigma$ it can be obtained:
+```{r}
+b <- 4.68
+a <- 0.826
+#The prior is a Beta(0.826,4.68) so with a Binomial Likelyhood the associated posterior is also a Beta distribution with:
+
+a.post <- a + y
+b.post <- b + n - y 
+
+x <- seq(0,1,.001)
+
+m.post <- a.post/(b.post+a.post)
+var.post <- (a.post*b.post)/(((a.post+b.post)^2)*(a.post+b.post+1))
+
+
+cat(m.post,"\n",sqrt(var.post))
+
+plot(x, dbeta(x,a.post,b.post), type="l", main="Posterior distribution with prior Beta(0.826,4.68)", xlab = "p", ylab="density", xlim = c(0, 0.2) )
+abline(v=m.post, lwd=3, col="firebrick")
+abline(v=m.post-sqrt(var.post), lty="dotted")
+abline(v=m.post+sqrt(var.post), lty="dotted")
+
+
+```
+```{r}
+#hypotesys test in bayesian way H0: p>=0.15
+
+p <- 0.15
+post <- function(x) {return(dbeta(x,a.post,b.post))}
+cat("The integral of required region is:", integrate(post, 0.15, 1)$value*100,"%\nIt is smaller that 5% of significance level so we can reject the null hypotesys, test has produced significant results.")
+
+plot(x,post(x),type="l", xlim = c(0,0.2))
+abline(v=0.15, lty="dotted")
+polygon(x=c(0.15,x[x>=0.15]), y=c(0,post(x)[x>=0.15]), col="firebrick")
+abline(h=0, lty="dotted")
+
+```
+
+```{r}
+#the same HT in the frequentist way
+x <-0:20
+
+barplot(pbinom(x,75,0.15), names.arg = x, xlab="y", ylim=c(0,0.2))
+abline(h=0.05, lty="dotted")
+cat("y = 6 lies in the acceptance region so the H0 hypotesis should be accepted, to be more sure is useful to calculate the p-value:", pbinom(6,75,0.15)*100, "% which is higher then the 5% acceptance level so the null hypotesys must be accepted.")
+```
+
+ESERCIZIO 2
+
+```{r}
+#a uniform prior for a poisson process can be view as a Gamma(a=1,l=0) which for poisson process is coniugate to another Gamma distribution.
+#The new parameters for distribution can be obtained: a.post = a + sum(y) l.post = l + n 
+a.prior <- 1
+l.prior <- 0 
+
+y1 <- c(109,65,22,3,1,0)
+y2 <- c(144,91,32,3,1,0)
+ 
+n <- length(y1)
+
+a1.post <- a.prior + sum(y1)
+a2.post <- a.prior + sum(y2)
+
+l.post <- l.prior + n 
+
+m1 <- a1.post/l.post
+m2 <- a2.post/l.post
+var1 <- a1.post/(l.post^2)
+var2 <- a2.post/(l.post^2)
+clow1 <- qgamma(0.025, a1.post, l.post)
+cup1 <-  qgamma(0.975, a1.post, l.post)
+clow2 <- qgamma(0.025, a2.post, l.post)
+cup2 <-  qgamma(0.975, a2.post, l.post)
+med1 <- qgamma(0.5, a1.post, l.post)
+med2 <- qgamma(0.5, a2.post, l.post)
+
+
+x <- seq(0,100,.001) 
+plot(x, dgamma(x,a1.post,l.post), type="l", lwd=2, col="firebrick", main="posterior distiburions", xlim=c(20,60), xlab="mu", ylab="density")
+lines(x, dgamma(x,a2.post,l.post), lwd=2, col="navy")
+abline(v = m1, lwd=2)
+abline(v = m2, lwd=2)
+abline(v = m1-sqrt(var1), lty="dotted")
+abline(v = m1+sqrt(var1), lty="dotted")
+abline(v = m2-sqrt(var2), lty="dotted")
+abline(v = m2+sqrt(var2), lty="dotted")
+
+abline(v = clow1, lty="dotted", col="red")
+abline(v = cup1, lty="dotted", col="red")
+abline(v = clow2, lty="dotted", col="blue")
+abline(v = cup2, lty="dotted", col="blue")
+
+
+cat("mean are:", m1, m2, "\nvariance are:", var1, var2, "\ncredibility intervals are:[",clow1,";",cup1,"], [",clow2,";",cup2,"]", "\nmedians:",med1, med2 )
+```
+
+
+```{r}
+#with jeffrey's prior 
+a.prior <- 0.5
+l.prior <- 0 
+
+y1 <- c(109,65,22,3,1,0)
+y2 <- c(144,91,32,3,1,0)
+ 
+n <- length(y1)
+
+a1.post <- a.prior + sum(y1)
+a2.post <- a.prior + sum(y2)
+
+l.post <- l.prior + n 
+
+m1 <- a1.post/l.post
+m2 <- a2.post/l.post
+var1 <- a1.post/(l.post^2)
+var2 <- a2.post/(l.post^2)
+clow1 <- qgamma(0.025, a1.post, l.post)
+cup1 <-  qgamma(0.975, a1.post, l.post)
+clow2 <- qgamma(0.025, a2.post, l.post)
+cup2 <-  qgamma(0.975, a2.post, l.post)
+
+x <- seq(0,100,.001) 
+plot(x, dgamma(x,a1.post,l.post), type="l", lwd=2, col="firebrick", main="posterior distiburions", xlim=c(20,60), xlab="mu", ylab="density")
+lines(x, dgamma(x,a2.post,l.post), lwd=2, col="navy")
+abline(v = m1, lwd=2)
+abline(v = m2, lwd=2)
+abline(v = m1-sqrt(var1), lty="dotted")
+abline(v = m1+sqrt(var1), lty="dotted")
+abline(v = m2-sqrt(var2), lty="dotted")
+abline(v = m2+sqrt(var2), lty="dotted")
+
+abline(v = clow1, lty="dotted", col="red")
+abline(v = cup1, lty="dotted", col="red")
+abline(v = clow2, lty="dotted", col="blue")
+abline(v = cup2, lty="dotted", col="blue")
+
+
+cat("mean are:", m1, m2, "\nvariance are:", var1, var2, "\ncredibility intervals are:[",clow1,";",cup1,"], [",clow2,";",cup2,"]" )
+```
+
+
+ESERCIZIO 3
+
+
+```{r}
+n <- 116
+y <- 11
+cat("frequentist estimator for p is:", y/n)
+```
+```{r}
+#using beta(1,10) calculate the posterior
+a.prior <- 1
+b.prior <-10
+
+a.post <- y + a.prior
+b.post <- n - y + b.prior 
+
+x<- seq(0,1,.001)
+
+qlow <- qbeta(0.025,a.post,b.post)
+qup <- qbeta(0.975,a.post,b.post)
+
+
+plot(x, dbeta(x,a.post,b.post), type="l", xlim=c(0, 0.2))
+abline(v=a.post/(a.post+b.post), lwd=2, col="firebrick")
+abline(v=qlow, lty="dotted")
+abline(v=qup, lty="dotted")
+```
+```{r}
+cat("The bayesian estimator is:", a.post/(a.post+b.post), "\nThe variance is:", (a.post*b.post)/(((a.post+b.post)^2)*(a.post+b.post+1)))
+cat("\n95% credibility interval is: [",qlow,";",qup,"]")
+```
+
+```{r}
+#test in the frequentist way 
+
+x <- 0:30
+
+barplot(dbinom(x,n,0.1), names.arg = x, xlim=c(0,30))
+
+
+qlow <- qbinom(0.025,116,0.1)
+qup <- qbinom(0.975,116,0.1)
+cat("area in the acceptance region:", sum(dbinom(qlow:qup,116,0.1))*100, "\nlimits of the acceptance region:", qlow, qup,"\nalpha is:", (1-sum(dbinom(qlow:qup,116,0.1)))*100,"%\n")
+
+abline(h=0.0425, lty="dotted")
+cat("our measure y=11 lies in the acceptance region so the null hypotesis can not be rejected on a significance level of 5%")
+```
+
+```{r}
+#HT in bayesian way
+cat("\n95% credibility interval is: [",qlow,";",qup,"] so the probability p=0.1 lies inside the acceptance regione, null hypothesis can not be rejected.")
+```
+
+
+
+
+
+
+

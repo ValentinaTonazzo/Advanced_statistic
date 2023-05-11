@@ -1,0 +1,12 @@
+model{
+
+    # Likelihood
+    for (i in 1:6) {
+       X[i] ~ dpois(lambda); 
+    }
+        
+    # a uniform prior for lambda
+    lambda ~ dexp(0.00001);
+        
+    }
+    

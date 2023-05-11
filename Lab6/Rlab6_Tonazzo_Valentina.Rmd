@@ -1,0 +1,672 @@
+---
+title: "Rlab6_Tonazzo_Valentina"
+author: "Tonazzo Valentina"
+date: '2022-05-19'
+output: html_document
+---
+
+#EXERCISE 1
+```{r}
+#A)what is the probability distribution of y, the number of times the new method fails to detect the disease?----->It is a binomial distribution
+p=8/100 #till now unknown 
+n=75
+x <- seq(from=0,to=20)
+plot(dbinom(x, n, p),
+        xlab='Number of failures',
+        ylab='Density',
+        main='Distribution of number of times the new method fails',
+        col='cyan3',
+        type='l',
+        lwd = 3.5)
+grid()
+text(x=15,y=0.1,"Binomial distribution")
+
+
+```
+
+```{r}
+# B) On the n = 75 patients sample, the new method fails to detect the disease in y = 6 cases. What is the frequentist estimator of the failure probability of the new method ? ----> point estimator(?)
+n <- 75
+y <- 6
+p.f <- y/n
+E.pf <- p.f
+var.pf <- p.f*(1-p.f)/n
+MSE.pf <- var.pf
+cat("The frequentist estimator is:", p.f,"\nThe properties of the estimator are:","\nE[p]:",E.pf,"\nvar[p]:", var.pf,"\nMSE[p]:",MSE.pf)
+```
+
+```{r}
+#C) setup a bayesian computation of the posterior probability, assuming a beta distribution with mean value 0.15 and standard deviation 0.14. Plot the posterior distribution for y, and mark on the plot the mean value and variance
+
+#the posterior distribution of a beta prior is another beta distribution. 
+
+m <- 0.15
+s <- 0.14
+#parameters  of the prior distribution
+a <- ((m*(1-m)/(s^2))-1)*m
+b <- a*(1-m)/m
+#parameters of posterior distribution
+a1 <- a+y
+b1 <- b+n-y
+
+m1 <- a1/(a1+b1)
+var <- (m1*(1-m1))/(a1+b1+1)
+#prior and posterior distributions
+p <- seq(0,1, length=1000)
+
+plot(p, dbeta(p,a,b), type='l', col='navy', lwd = 3, ylim = c(0,14), xlim = c(0,0.2), ylab="Density")    #prior
+lines(p, dbeta(p,a1,b1), col = 'firebrick4', lwd = 3)                   #posterior
+abline(v = m1, col="red", lwd=1, lty=1)
+abline(v = m1-sqrt(var), lty=2)
+abline(v = m1+sqrt(var), lty=2)
+abline(v = E.pf, col="orange" )
+grid()
+
+legend(0.13, 12, legend=c("prior distribution", "bayesian mean value", "frequentist mean value","posterior distribution"),
+       col=c("navy", "red", "orange","firebrick4"), lty=1:1, cex=0.8, bty = 'n')
+
+text(x=round(m1-sqrt(var),3)-0.003,y=12,round(m1-sqrt(var),3),srt=90)
+text(x=round(m1+sqrt(var),3)-0.003,y=12,round(m1+sqrt(var),3),srt=90)
+text(x=round(m1,3)+0.003,y=9,round(m1,3),srt=90)
+text(x=round(E.pf,3)-0.003,y=9,round(E.pf,3),srt=90)
+
+```
+
+
+
+```{r}
+#D) Perform a test of hypothesis assuming that if the probability of failing to the detect the desease in ill patients is greater or equal than 15%, the new test is no better that the traditional method. Test the sample at a 5% level of significance in the Bayesian way.
+
+#The null hypothesis is that p>p0 (if p> p0 the the new method is no better than the old one.)
+
+post <- function(x){
+    return(dbinom(y, n, x)*dbeta(x, a, b))
+}
+post.norm <- function(x){
+    return(post(x)/integrate(post,0,1)$valu)
+}
+cat(integrate(post.norm, 0.15, 1)$value*100, "%")
+
+```
+The result is lower than the significance level of 5% so we can reject the null hypothesis at this level, this means that the test has produced significant results and the new test is better then the traditional one.
+
+```{r}
+#E) Perform the same hypothesis test in the classical frequentist way
+r.lo<-qbinom(0.05,75,0.15)
+x <- seq(0,20)
+bins <-  pbinom(x, 75, 0.15)
+cols <- rep('gray', 31)
+cols <- replace(cols, seq(1,r.lo+1), 'firebrick4')
+cols <- replace(cols, 7, 'navy')
+barplot(bins, names.arg=x, col=cols, ylim=c(0,0.2),xlab='Number of failures',ylab='Probability', main='Cumulative distribution', xpd = FALSE)
+abline(h=0.05, col ='firebrick2', lty='dotted', lwd=2)
+
+```
+The area under the horizontal line is the null-hypothesis rejection region. The measure y=6 corresponds to a bin in the acceptance region, this means that the null hypothesis must be accepted, so the new test is no better then the traditional one.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#EXERCISE 2
+```{r}
+#A function to evaluate the same parameters and plots for both priors
+analysis <- function(alpha,alpha2, n, c){
+  
+  #alpha is alpha parameter for first corp, alpha2 for the second corp
+  #n is length of measurments
+  #c is a string, type of prior distribution
+  
+min <- 0
+max <- 100
+dmu <- 0.1
+mu <- seq(min, max, dmu)
+
+#THE POSTERIORS for both corps
+gamma.post <- dgamma(mu, alpha, n)      
+gamma.post2 <- dgamma(mu, alpha2, n)
+
+# MEAN, MEDIAN, VARIANCE 
+# Analytically:
+#corp1
+ana.mu <- alpha/n       #by definition: mean of gamma function
+ana.var <- alpha/(n^2)  #by definition: variance of gamma function 
+#------------------------------------------------------------------
+#corp2
+ana.mu2 <- alpha2/n
+ana.var2 <- alpha2/(n^2)
+
+
+#Numerically:
+#corp1
+num.mu <- dmu*sum(mu*gamma.post)
+num.var <- dmu*sum((mu^2)*gamma.post) - (num.mu^2)
+num.median <- qgamma(0.5, alpha, n)
+#--------------------------------------------------------------
+#corp2
+num.mu2 <- dmu*sum(mu*gamma.post2)
+num.var2 <- dmu*sum((mu^2)*gamma.post2) - (num.mu2^2)
+num.median2 <- qgamma(0.5, alpha2, n)
+
+
+#95% CREDIBILITY INTERVAL 
+
+#corp1
+ci1 <- qgamma(0.025, alpha, n)
+ci2 <- qgamma(0.975, alpha, n)
+
+cig1 <- qnorm(0.025, ana.mu, sqrt(ana.var))
+cig2 <- qnorm(0.975, ana.mu, sqrt(ana.var))
+
+#-------------------------------------------------------------------
+#corp2
+ci1.2 <- qgamma(0.025, alpha2, n)
+ci2.2 <- qgamma(0.975, alpha2, n)
+
+cig1.2 <- qnorm(0.025, ana.mu2, sqrt(ana.var2))
+cig2.2 <- qnorm(0.975, ana.mu2, sqrt(ana.var2))
+
+
+
+#plot for corp1
+plot(mu, gamma.post , type = 'l', lwd = 3, col = 'firebrick4', main =paste('Posterior distribution for',c,'Prior'), xlab = expression(mu), ylab = expression(paste("P(", mu, " | y )")), las = 1)
+abline(v=num.mu, col="red", lty = 2)
+abline(v=num.mu2, col="blue", lty=2)
+#plot for corp2
+lines(mu,gamma.post2 , type = 'l', lwd = 3, col = 'navy')
+grid()
+legend(80, 0.15, legend=c("corp1", "corp2"),
+       col=c("firebrick4", "navy"), lty=1:1, cex=0.8, lwd = 2, bty = 'n')
+
+
+cat("=============================\n")
+cat(c, "PRIOR \n")
+cat("=============================\n")
+cat("ANALYTICAL RESULTS\n")
+cat("-----------------------------\n")
+cat("\nCORP1\n")
+cat("mean:", ana.mu,"\nvariance:", ana.var)
+cat("\nCORP2\n")
+cat("mean:", ana.mu2,"\nvariance:", ana.var2)
+cat("\n---------------------------\n")
+cat("NUMERICAL RESULTS\n")
+cat("-----------------------------\n")
+cat("\nCORP1\n")
+cat("mean:", num.mu,"\nvariance:", num.var, "\nmedian:", num.median)
+cat("\nCORP2\n")
+cat("mean:", num.mu2,"\nvariance:", num.var2, "\nmedian:", num.median2)
+cat("\n---------------------------\n")
+cat("95% CREDIBILITY INTERVAL:\n")
+cat("-----------------------------\n")
+cat("\nCORP1\n")
+cat("for current prior:          [",ci1,":",ci2,"]\nfor gaussian approximation: [",cig1,":",cig2,"]\n\n" )
+cat("\nCORP2\n")
+cat("for current prior:          [",ci1.2,":",ci2.2,"]\nfor gaussian approximation: [",cig1.2,":",cig2.2,"]\n\n" )
+
+}
+
+
+#ACTUAL ANALYSIS 
+corp1 <- c(109, 65, 22, 3,  1, 0)
+corp2 <- c(144, 91, 32, 11, 2, 0)
+
+alpha.unif <- 1 + sum(corp1)
+alpha.jeffrey <- 0.5  + sum(corp1)
+
+alpha.unif2 <- 1 + sum(corp2)
+alpha.jeffrey2 <- 0.5  + sum(corp2)
+
+n <- length(corp1)
+
+analysis(alpha.unif,alpha.unif2,n,"UNIFORM")
+analysis(alpha.jeffrey,alpha.jeffrey2,n, "JEFFREY'S")
+```
+
+#EXERCISE 3
+```{r}
+#A)find the frequentist estimator for p
+n  <- 116
+y  <- 11
+p <- y/n
+s <- sqrt(p*(1-p)/n)  #standard deviation
+
+cat("Frequentist aproach:\np   =",p,"\nstd =",s)
+```
+
+```{r}
+#B) using a Beta(1, 10) prior for p, calculate and posterior distribution P (p|y)
+x<-seq(0,1,by=0.001)
+
+#parameter update in the statistical manifold
+alpha.p<-1+y
+beta.p<-10+n-y
+
+#posterior pdf
+post <- function(x){
+    dbeta(x,alpha.p,beta.p)
+}
+
+#------------------------PLOT---------------------------------
+mean<-(alpha.p)/(alpha.p+beta.p)                #bayesian estimator
+var<-(1/(n+2))^2*n*(y/n)*(1-(y/n))
+std<-sqrt(var)
+
+plot(x,
+     post(x)/integrate(post,0,1)$value,
+     type='l',
+     xlim=c(0,0.2),
+     xlab='x',
+     ylab='Density',
+     main='Posterior',
+     col='firebrick4',
+     lwd=3)
+
+abline(v=mean,     lwd=2, col='red')
+abline(v=mean-std, lwd=1, lty='dotted')
+abline(v=mean+std, lwd=1, lty='dotted')
+abline(v=round(y/n,3),lwd=2, col='orange')
+    legend('topright',
+           legend=c("Bayesian estimator", "Frequentist estimator", "95% credibility interval"),
+           col=c("red","orange","black"),
+           lty=c(1,1,2),
+           bty = "n",
+          )
+grid()
+text(x=round(mean-std,3)-0.003,y=5,round(mean-std,3),srt=90)
+text(x=round(y/n,3)+0.003,y=5,round(y/n,3),srt=90)
+text(x=round(mean,3)-0.003,y=5,round(mean,3),srt=90)
+text(x=round(mean+std,3)-0.003,y=5,round(mean+std,3),srt=90)
+
+```
+```{r}
+#C)Find the Bayesian estimator for p, the posterior mean and variance, and a 95% credible interval
+
+print(paste('The mean of the posterior (that in our convention is the Bayesian estimator for p) is:', round(mean,4)))
+print(paste('The variance is', round(var,4)))
+ci1 <- qbeta(0.025, alpha.p, beta.p)
+ci2 <- qbeta(0.975, alpha.p, beta.p)
+print(paste("The credibility interval is: [",round(ci1,5),":",round(ci2,5),"]"))
+```
+
+```{r}
+#D) test the hypothesis H0 : p = 0.1 versus H1 : p != 0.1 at 5% level of significance with both the frequentist and bayesian approach
+library(glue)
+p0 <- 0.1
+a <- 0.05
+```
+
+
+FREQUENTIST APPROACH
+```{r}
+y_range <- seq(from=0, to=n, by=1)
+#just to remind: n = 116 is the number of observation 
+
+#function to create sample following binomial distribution
+samples <- Vectorize(function (x){
+    a <- dbinom(x, n, p0)
+    return (a)
+    })
+
+#credibility intervals extracted with qbinom function
+c1 <- qbinom(0.025, n, p0)
+c2 <- qbinom(0.975, n, p0) 
+cat("If y belongs to [",c1,":",c2,"] then the null hypotesis is accepted. Otherwise it is rejected.\n")
+glue("Since y={y}, the null hypotesis is accepted with {(1-a)*100}% of confidence.")    #glue function is useful to insert data values while printing
+
+#a vector to identify colours of histogram bars
+colors <- rep("firebrick4", n)                   #initialized with firebrick4       
+colors[y_range>=c1 & y_range<=c2] <- "gray"      #inside credibility interval are gray
+
+bar <- barplot(samples(y_range),col=colors,xlab="Samples with high bacter X level (y)",ylab="1-F(y)",main="Null distribution Bin(y|n = 116, p = 0.1)", names.arg = y_range, border="white",xlim = c(2, 25))
+abline(v=bar[y+1], col="navy",lty=2)
+legend(20,0.1,legend="y=11",lty=2, col="navy", bty='n')
+```
+BAYESIAN APPROACH
+```{r}
+glue("The 95% credibility interval for the posterior is [{round(ci1,5)},{round(ci2,5)}].")
+glue("Since p={p0} belongs to this interval, then the null hypotesis is accepted with {(1-a)*100}% of confidence.")
+```
+```{r}
+# E) a new measurement, performed one month later on n = 165 water samples, gives y = 9 high bacteria X level find the frequentist estimator for p
+n  <- 165
+y  <- 9
+p <- y/n
+s <- sqrt(p*(1-p)/n)  #standard deviation
+
+glue("Frequentist aproach:\np   = {round(p,4)}\nstd = {round(s,4)}")
+
+```
+```{r}
+#F) find a bayesian estimator for p, assuming both a Beta(1, 10) prior for p, and assuming the posterior probability of the older measurement as the prior for the new one.
+#G) find the bayesian estimator for p, the posterior mean and variance, and a 95% credible interval
+
+#FOR BETA(1,10) FUNCTION
+alpha.new<-1+y
+beta.new<-10+n-y
+
+mean<-(alpha.new)/(alpha.new+beta.new)                #bayesian estimator
+var<-(1/(n+2))^2*n*(y/n)*(1-(y/n))
+std<-sqrt(var)
+
+
+ci.low <- qbeta(0.025, alpha.new, beta.new)
+ci.up <- qbeta(0.975, alpha.new, beta.new)
+
+glue("BETA PRIOR(1,10)")
+print(paste('The Bayesian estimator for p is:', round(mean,4)))
+print(paste('The variance is', round(var,4)))
+glue("The 95% credibility interval is [{round(ci.low,5)},{round(ci.up,5)}].\n\n")
+
+#FOR THE POSTERIOR PROBABILITY OF THE OLDER MEASUREMENT 
+n.old  <- 116
+y.old  <- 11
+alpha.old<-1+y.old        #12
+beta.old<-10+n.old-y.old  #115
+alpha.new2 <- alpha.old + y
+beta.new2 <- beta.old + n - y 
+
+
+mean2<-(alpha.new2)/(alpha.new2+beta.new2)                #bayesian estimator
+var2<-(1/(n+2))^2*n*(y/n)*(1-(y/n))
+std2<-sqrt(var)
+ci.low2 <- qbeta(0.025, alpha.new2, beta.new2)
+ci.up2 <- qbeta(0.975, alpha.new2, beta.new2)
+
+glue("POSTERIOR PROBABILITY OF OLDER MEASURMENTS AS PRIOR")
+print(paste('The Bayesian estimator for p is:', round(mean2,4)))
+print(paste('The variance is', round(var2,4)))
+glue("The 95% credibility interval is [{round(ci.low2,5)},{round(ci.up2,5)}].")
+```
+
+
+```{r}
+# H) test the hypothesis H0 : p = 0.1 versus H 1 : p  != 0.1 at 5% level of significance with both the frequentist and bayesian approach
+
+p0 <- 0.1
+a <- 0.05
+```
+
+
+FREQUENTIST APPROACH
+```{r}
+#to remeber: the code is the same but we have a new n value and y value, the old one became n.old and y.old
+y_range <- seq(from=0, to=n, by=1)
+#tjust to remind: n = 116 is the number of observation 
+
+#function to create sample following binomial distribution
+samples <- Vectorize(function (x){
+    a <- dbinom(x, n, p0)
+    return (a)
+    })
+
+#credibility intervals extracted with qbinom function
+c1 <- qbinom(0.025, n, p0)
+c2 <- qbinom(0.975, n, p0) 
+cat("If y belongs to [",c1,":",c2,"] then the null hypotesis is accepted. Otherwise it is rejected.\n")
+glue("Since y={y}, the null hypotesis is accepted with {(1-a)*100}% of confidence.")    #glue function is useful to insert data values while printing
+
+#a vector to identify colours of histogram bars
+colors <- rep("firebrick4", n)                   #initialized with firebrick4       
+colors[y_range>=c1 & y_range<=c2] <- "gray"      #inside credibility interval are gray
+
+bar <- barplot(samples(y_range),col=colors,xlab="Samples with high bacter X level (y)",ylab="1-F(y)",main="Null distribution Bin(y|n = 165, p = 0.1)", names.arg = y_range, border="white",xlim = c(2, 35))
+abline(v=bar[y+1], col="navy",lty=2)
+legend(24,0.1,legend="y=9",lty=2, col="navy", bty='n')
+```
+BAYESIAN APPROACH
+```{r}
+glue("using Beta(1,10) prior")
+glue("The 95% credibility interval for the posterior is [{round(ci.low,5)},{round(ci.up,5)}].")
+glue("Since p={p0} is outside the credibility interval of 95%, then the null hypotesis is rejected.\n\n")
+
+glue("using Beta({alpha.old},{beta.old}) prior")
+glue("The 95% credibility interval for the posterior is [{round(ci.low2,5)},{round(ci.up2,5)}].")
+glue("Since p={p0} belongs to this interval, then the null hypotesis is accepted with {(1-a)*100}% of confidence.")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+# EXERCISE 4
+```{r}
+# Analyze the data of Exercise 1 using a MCMC with JAGS (solve only point a of Ex 1)
+# what is the probability distribution of y, the number of times the new method fails to detect the disease
+
+library('rjags')
+library('coda')
+
+n = 76 # sample size
+y = 6 # number of successes
+
+
+
+filename <- "model_ex6.0.bug"
+cat("model{
+
+    # Likelihood
+    y ~ dbinom(p, n);
+        
+    # a uniform prior for lambda
+    p ~ dbeta(a, b);
+    m <- 0.15
+    s <- 0.14
+    #parameters  of the prior distribution
+    a <- ((m*(1-m)/(s^2))-1)*m
+    b <- a*(1-m)/m
+        }
+    ", file=filename
+)
+```
+
+```{r}
+
+dataList = list(y = y, n = n)
+#data <- NULL
+#data$X <- 11/116
+#data$n <- 116
+
+
+jm <- jags.model(filename, dataList)
+
+# Update the Markov chain (Burn -in)
+update (jm , 1000)
+chain <- coda.samples (jm , c(" p "), n.iter=10000)
+
+print( summary (chain ))
+plot(chain , col="navy")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+
+#EXERCISE 5
+#assuming uniform prior 
+library('rjags')
+library('coda')
+
+filename <- "model_ex6.bug"
+cat("model{
+
+    # Likelihood
+    for (i in 1:6) {
+       X[i] ~ dpois(lambda); 
+    }
+        
+    # a uniform prior for lambda
+    lambda ~ dexp(0.00001);
+        
+    }
+    ", file=filename
+)
+```
+
+
+```{r}
+
+analysis<-function(corp) {
+  
+  #Collected data
+  data <- NULL
+  data$X <- corp
+  data$n <- length(data$X)
+
+  jm <- jags.model(filename, data)
+
+  # Update the Markov chain (Burn -in)
+  update (jm , 1000)
+  chain <- coda.samples (jm , c(" lambda "), n.iter=10000)
+
+  print( summary (chain ))
+  plot(chain , col="navy")
+  
+}
+
+corp1 <- c(109, 65, 22, 3,  1, 0)
+corp2 <- c(144, 91, 32, 11, 2, 0)
+
+analysis(corp1)
+analysis(corp2)
+
+
+
+
+```
+
+
+
+
+```{r}
+#ASSUMING JEFFREY'S PRIOR ---> PROVVISORIO
+
+filename <- "model_ex6.1.bug"
+cat("model{
+
+    # Likelihood
+    for (i in 1:6) {
+       X[i] ~ dpois(lambda); 
+    }
+        
+    # a uniform prior for lambda
+    lambda ~ dgamma(0.00001,0.00001);
+        
+    }
+    ", file=filename
+)
+```
+
+
+```{r}
+#Collected data
+  data <- NULL
+  data$X <- c(109, 65, 22, 3,  1, 0)
+  data$n <- length(data$X)
+
+  jm <- jags.model(filename, data)
+
+  # Update the Markov chain (Burn -in)
+  update (jm , 1000)
+  chain <- coda.samples (jm , c(" lambda "), n.iter=10000)
+
+  print( summary (chain ))
+  plot(chain , col="navy")
+```
+
+
+
+#EXERCISE 6
+```{r}
+#analyze the data of Exercise 3 using a MCMC with JAGS (solve point b and c)
+#b)using a Beta(1, 10) prior for p, calculate and posterior distribution P (p | y)
+#c)find the bayesian estimator for p, the posterior mean and variance, and a 95% credible interval
+
+library('rjags')
+library('coda')
+
+n = 116 # sample size
+y = 11 # number of successes
+
+filename <- "model_ex6.2.bug"
+cat("model{
+
+    # Likelihood
+    y ~ dbinom(p, n);
+        
+    # a uniform prior for lambda
+    p ~ dbeta(1, 10);
+        }
+    ", file=filename
+)
+```
+
+```{r}
+
+dataList = list(y = y, n = n)
+#data <- NULL
+#data$X <- 11/116
+#data$n <- 116
+
+
+jm <- jags.model(filename, dataList)
+
+# Update the Markov chain (Burn -in)
+update (jm , 1000)
+chain <- coda.samples (jm , c(" p "), n.iter=10000)
+
+print( summary (chain ))
+plot(chain , col="navy")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,9 @@
+model{
+
+    # Likelihood
+    y ~ dbinom(p, n);
+        
+    # a uniform prior for lambda
+    p ~ dbeta(1, 10);
+        }
+    

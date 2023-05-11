@@ -1,0 +1,14 @@
+model{
+
+    # Likelihood
+    y ~ dbinom(p, n);
+        
+    # a uniform prior for lambda
+    p ~ dbeta(a, b);
+    m <- 0.15
+    s <- 0.14
+    #parameters  of the prior distribution
+    a <- ((m*(1-m)/(s^2))-1)*m
+    b <- a*(1-m)/m
+        }
+    
