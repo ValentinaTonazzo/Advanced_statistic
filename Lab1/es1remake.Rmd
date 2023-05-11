@@ -1,0 +1,73 @@
+---
+title: "es1remake"
+author: "Tonazzo Valentina"
+date: '2022-08-21'
+output: html_document
+---
+
+#esercizio 1
+```{r}
+Loch <- c("Loch Ness", "Loch Lomond", "Loch Morar", "Loch Tay", "Loch Awe", "Loch Maree", "Loch Ericht", "Loch Lochy", "Loch Rannoch", "Loch Shiel", "Loch Katrine", "Loch Arkaig", "Loch Shin") 
+Volume <- c(7.45, 2.6, 2.3, 1.6, 1.2, 1.09, 1.08, 1.07, 0.97, 0.79, 0.77, 0.75, 0.35) 
+Area <- c(56, 71, 27, 26.4, 39, 28.6, 18.6, 16,19, 19.5, 12.4, 16, 22.5) 
+Length <- c( 39,36, 18.8, 23, 41, 20, 23, 16, 15.7, 28, 12.9, 19.3, 27.8) 
+Max_depth <- c(230, 190, 310, 150, 94, 114, 156, 162, 134, 128, 151, 109, 49) 
+Mean_depth <- c(132, 37, 87,60.6, 32, 38, 57.6, 70, 51, 40, 43.4, 46.5, 15.5) 
+
+scottish.lakes <- data.frame(Loch,Volume,Area,Length,Max_depth,Mean_depth)
+
+max.vol <- max(scottish.lakes$Volume)
+min.vol <- min(scottish.lakes$Volume)
+max.area <-max(scottish.lakes$Area)
+min.area <-min(scottish.lakes$Area)
+
+cat("Volume min and max:", min.vol,max.vol,"\nArea min and max:",min.area,max.area)
+```
+
+
+```{r}
+ordered <- scottish.lakes[sort(scottish.lakes$Area,decreasing = T, index.return=T)$ix,]
+print(head(ordered,2))
+```
+
+```{r}
+cat("the area covered by water is:", sum(scottish.lakes$Area))
+```
+
+#esercizio 2
+```{r}
+crude.oil <- read.csv("crude-oil-prices.csv")
+crude.oil[1:10,]
+```
+
+```{r}
+plot(crude.oil$Year,crude.oil$Oil...Crude.prices.since.1861..current..., pch=1, cex=0.7, col="red", xlab="Year", ylab="crude oil price")
+lines(crude.oil$Year,crude.oil$Oil...Crude.prices.since.1861..current...,col="firebrick")
+grid()
+```
+
+```{r}
+max.price <- max(crude.oil$Oil...Crude.prices.since.1861..current...)
+max.price.year <- crude.oil$Year[which.max(crude.oil$Oil...Crude.prices.since.1861..current...)]
+
+cat("max price:", max.price, "\nOccurs in:", max.price.year)
+```
+```{r}
+derivative <- crude.oil$Oil...Crude.prices.since.1861..current...[-1]-crude.oil$Oil...Crude.prices.since.1861..current...[-length(crude.oil$Oil...Crude.prices.since.1861..current...)]
+
+plot(crude.oil$Year[-length(crude.oil$Year)],derivative, pch=1, cex=0.7, col="red", xlab = "Year", ylab = "derivative", las=2)
+lines(crude.oil$Year[-length(crude.oil$Year)], derivative, col="firebrick")
+grid()
+```
+
+#esercizio3
+
+```{r}
+library("tibble")
+coal <- as_tibble( read.csv("coal-production-by-country.csv") )
+str(coal)
+```
+
+
+
+
