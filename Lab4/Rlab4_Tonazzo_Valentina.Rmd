@@ -1,0 +1,427 @@
+---
+title: "Rlab4_Tonazzo_Valentina"
+output: html_document
+date: '2022-05-03'
+---
+```{r}
+#EXERCISE 1
+#produce a plot of the data by averaging the observable over a period of one week and one month and quantify the impact of COVID-19 restrictions on mobility situations.
+library(tibble)
+library(tidyverse)
+
+Global_MR <- as_tibble(readr::read_csv("Global_Mobility_Report.csv", col_names=TRUE))
+```
+
+
+
+
+
+```{r}
+#MY TWO NATIONALITIES  ---> importing in 2 tibbles and selecting just important informations
+
+Italy_MR <- filter(Global_MR, (country_region == "Italy" &  place_id == "ChIJA9KNRIL-1BIRb15jJFz1LOI"))
+Ecuador_MR <- filter(Global_MR, (country_region == "Ecuador" & place_id == "ChIJ1UuaqN2HI5ARAjecEQSvdp0"))
+
+Italy_MR <- Italy_MR %>% select (-c(country_region, sub_region_1, sub_region_2, metro_area, iso_3166_2_code, census_fips_code,place_id))       #col non utili 
+Ecuador_MR <- Ecuador_MR %>% select (-c(country_region, sub_region_1, sub_region_2, metro_area, iso_3166_2_code, census_fips_code,place_id))
+
+```
+
+
+
+
+```{r}
+#create two new columns on each country tibble corresponding to weeks and months
+library(lubridate)
+
+ add.timestep <- function(x){
+   
+  a20 <- week(x$date[x$date <= "2020-12-31" ])                          #to separate each year and to obtain the corresponding weeks
+  a21 <- week(x$date[x$date > "2020-12-31" & x$date <= "2021-12-31" ])
+  a22 <- week(x$date[x$date > "2021-12-31" ])
+  
+  m20 <- month(x$date[x$date <= "2020-12-31" ])
+  m21 <- month(x$date[x$date > "2020-12-31" & x$date <= "2021-12-31" ])
+  m22 <- month(x$date[x$date > "2021-12-31" ])
+  
+  x <- x %>% add_column("week" = c(a20,a21 + a20[length(a20)],a22 + a21[length(a21)]+ a20[length(a20)]),
+                        "month" = c(m20,m21 + m20[length(m20)],m22 +m21[length(m21)]+ m20[length(m20)]), .before = "date" )   #add two columns for each dataframe
+  
+   return(x)
+ }
+
+#Italy_MR <- add.timestep(Italy_MR)              #to run just the first time 
+#Ecuador_MR <-add.timestep(Ecuador_MR)
+
+```
+
+```{r}
+#create dataframes with means over weeks and months for each category
+df.aggregation <- function(x,y){
+  
+  df <-setNames( aggregate(list(x$retail_and_recreation_percent_change_from_baseline,
+                      x$grocery_and_pharmacy_percent_change_from_baseline,
+                      x$parks_percent_change_from_baseline,
+                      x$transit_stations_percent_change_from_baseline,
+                      x$workplaces_percent_change_from_baseline,
+                      x$residential_percent_change_from_baseline), by = list(y), FUN="mean"),
+                      c("week", "retail", "grocery", "parks", "transit", "workplaces", "residential"))
+  return(df)
+  
+}
+It.weeks <- df.aggregation(Italy_MR,Italy_MR$week) 
+It.months <- df.aggregation(Italy_MR,Italy_MR$month)      #nel dataframe c'è sempre un campo che si chiama weeks anche se in realtà è aggregato da mesi
+Ec.weeks <- df.aggregation(Ecuador_MR,Ecuador_MR$week)
+Ec.months <- df.aggregation(Ecuador_MR,Ecuador_MR$month)
+```
+
+
+
+```{r}
+#PLOTS
+#dev.new(width = 1000, height = 500, unit = "px")
+
+tot.plot <- function(df,c,t){
+  plot(df$week, df$retail, pch = 4, cex= 0.8, ylab = "percent change from baseline day", xlab = t, col ="cyan4", ylim=c(-90,180),
+       main=paste0("Mobility situation over ",t," in ",c), las=1)
+  lines(df$week, df$retail, col = "navy")
+  points(df$week, df$grocery , col="pink", pch = 4, cex= 0.8)
+  lines(df$week, df$grocery, col = "deeppink3")
+  points(df$week, df$parks , col="orange", pch = 4, cex=0.8)
+  lines(df$week, df$parks, col = "darkorange3")
+  points(df$week, df$transit , col="green", pch = 4, cex=0.8)
+  lines(df$week, df$transit, col = "darkgreen")
+  points(df$week, df$workplaces , col="red", pch = 4, cex=0.8)
+  lines(df$week, df$workplaces, col = "darkred")
+  points(df$week, df$residential , col="darkorchid", pch = 4, cex=0.8)
+  lines(df$week, df$residential, col = "darkorchid4")
+  
+  legend(2, 180, legend=c("retail ", "grocery","parks", "transit", "workplaces", "residential" ), col=c("cyan4", "pink","orange", "green", "red", "darkorchid1" ), lwd=5, cex=0.8)
+}  
+
+tot.plot(It.weeks,"Italy","weeks")
+tot.plot(Ec.weeks,"Ecuador","weeks")
+tot.plot(It.months,"Italy","months")
+tot.plot(Ec.months,"Ecuador","months")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#EXERCISE 2
+#write R code to implement this type of generator and, given a fixed digit number input, square it an remove the leading and trailing digits, in order to return a number with the same number of digits as the original number
+
+
+VN.generator <- function(x,y){
+    inp <- unlist(strsplit(as.character(x),"")) 
+    outp <- unlist(strsplit(as.character(x^2),""))
+    l.in <- length(inp)
+    l.out <- length(outp)
+    i <- l.out-l.in
+    rnd.numbers <- c()
+    
+    for (j in 1:y){
+      
+      if (i%%2==0){output <- (paste(outp[(i/2+1):(l.out-(i/2))], collapse=""))}    #eventualmente da aggiungere una funzione apply per velocizzare  
+      else {output <- (paste(outp[((i+1)/2):(l.out-((i+1)/2))], collapse=""))}
+      
+      rnd.numbers <- append(rnd.numbers,output)
+      outp <- unlist(strsplit(as.character(as.numeric(output)^2),""))
+      l.out <- length(outp)
+      i <- l.out -l.in 
+    }
+    
+    return(rnd.numbers)
+}
+
+x <- readline("Enter the seed number : ")
+x <- as.numeric(x)
+y <- readline("how many pseudo-random numbers do you want? ")
+y<- as.numeric(y)
+VN.generator(x,y)
+
+```
+
+
+
+
+
+
+
+
+
+
+#EXERCISE 3
+A) What kind of distribution would you assume for y, the number of people that have seen the last issue of the journal ?
+
+Taking one person, the text tell us that there is a probability of p that this person has read the last issue of the journal and a probability of q = 1-p that it has not read it. So considering n persons, the number of people that have read the journal follows a Binomial distribution with parameters n and p.
+
+
+
+B) Assuming a uniform prior, what is the posterior distribution for y?
+
+Assuming a uniform prior, the posterior probability is proportional to the likelihood unless a normalization factor.
+
+
+```{r}
+# C) Plot both posterior and likelihood distributions functions
+ 
+#trying ggplot package ---> I can not modify the width of window plot in my computer (rstudio)  
+
+library(ggplot2)
+library(gridExtra)
+
+x <- seq(0,1,0.01)
+
+post <- function(x){
+    #assuming a uniform prior
+    return(dbinom(29,150,x)*dunif(x))
+}
+
+
+df <- data.frame(x=x, likelihood=dbinom(29,150,x), posterior=(post(x)/integrate(post, lower=0, upper=1)$value))
+
+p1 <- ggplot(df) + geom_line(aes(x=x, y=likelihood),colour='cyan4', size=0.5)+ggtitle('Likelihood')+labs(x='x', y='Probability')+theme(plot.title = element_text(hjust = 0.5,size=20))
+p2 <- ggplot(df) + geom_line(aes(x=x, y=posterior),colour='navy', size=0.5)+ggtitle('Posterior')+labs(x='x', y='Probability')+theme(plot.title = element_text(hjust = 0.5,size=20))
+
+
+grid.arrange(p1,p2,ncol=2,nrow=1)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#EXERCISE 4
+#the dataset
+tosses <- c('T', 'T', 'T', 'T', 'T', 'H', 'T', 'T', 'H', 'H', 'T', 'T', 'H', 'H', 'H', 'T', 'H','T', 'H', 'T', 'H', 'H', 'T', 'H', 'T', 'H','T', 'H', 'H', 'H')
+n.H <- sum(tosses=='H')
+n.T <- sum(tosses=='T')
+n.tot <- n.H + n.T
+```
+
+```{r}
+# A) Assuming a flat prior, and a beta prior, plot the likelihood, prior and posterior distributions for the data set.
+n <- 30   #number of tosses
+r <- 15  #number of heads
+
+alpha <- 10
+beta  <- 10
+
+n.sample <- 2000
+delta.p <- 1/n.sample
+
+p <- seq(from=1/(2*n.sample),by=delta.p, length.out=n.sample)
+x <- seq(0, 30)
+
+likelihood <- dbinom(x, n, 1/2)                           
+
+beta.prior <- dbeta(p, alpha, beta)            #the priors
+flat.prior <- dunif(p, 0, 1)                    
+
+beta.post <- dbeta(x=p, alpha+r, beta+n-r)      #the posteriors
+flat.unnorm <- dbinom(x=r, size=n, prob=p)
+flat.post <- flat.unnorm/(delta.p*sum(flat.unnorm))
+
+#PLOTS
+
+plot(x, likelihood, xaxs='i', yaxs='i', type='l', lwd = 3,    #the likelihood
+     col = 'black', main="Likelihood", 
+     cex.main=1.5, ylim=c(0,0.16),
+     xlab="x", ylab="P(x | p, n, M)", cex.lab=1.2, las=1)
+grid()
+
+
+plot(p, flat.prior, xaxs='i', yaxs='i', type='l', lwd = 3,   #the priors
+     col = 'firebrick', main="Priors", 
+     cex.main=1.5, xlim=c(-0.05,1.05), ylim=c(0,4),
+     xlab="p", ylab="P(p | M)", cex.lab=1.2, las=1)
+lines(p, beta.prior, xaxs='i', yaxs='i', type='l', lwd = 3, 
+     col = 'navy')
+legend('topleft', col=c('firebrick','navy'), 
+       legend=c("Uniform", "Beta"), cex=1.5, lty=c(1,1), bty='n', lwd = 4)
+grid()
+
+   
+plot(p, flat.post, xaxs='i', yaxs='i', type='l', lwd = 3,    #the posteriors
+     col = 'firebrick', main="Posteriors",   
+     cex.main=1.5, xlim=c(-0.05,1.05), ylim=c(0,6.4),
+     xlab="p", ylab = "P(p | x, n, M)", cex.lab=1.2 , las=1)                        
+lines(p, beta.post, xaxs='i', yaxs='i', type='l', lwd = 3, col = 'slateblue4')
+legend('topleft', col=c('firebrick','navy'),
+       legend=c("Uniform", "Beta"), cex=1.5, lty=c(1,1), bty='n', lwd = 4)
+grid()
+
+```
+
+
+
+
+
+
+
+
+```{r}
+#B) Evaluate the most probable value for the coin probability p and, integrating the posterior probability distribution, give an estimate for a 95% credibility interval.
+
+#The credibility interval are considered symmetric. The most probable value is the mode of the distribution
+
+beta.mode <- p[which.max(beta.post)]
+p1_beta <- qbeta(0.025, alpha+r, beta+n-r)
+p2_beta <- qbeta(0.975, alpha+r, beta+n-r)
+flat.mode <- p[which.max(flat.post)]
+cum_flat <- cumsum(flat.post)/n.sample
+p1_flat <- p[cum_flat >= 0.025][1]
+p2_flat <- p[cum_flat >= 0.975][1]
+
+#PLOTS
+
+plot(p, flat.post, xaxs='i', yaxs='i', type='l', lwd = 3, 
+     col = 'navy', main="Credibility interval with Uniform prior", 
+     cex.main=1.5, xlim=c(-0.05,1.05), ylim=c(0,6.4),
+     xlab="p", ylab="P(p | x, n, M)", cex.lab=1.2, las=1)
+abline(v=flat.mode, col='black', lty=2)
+abline(v=p1_flat, col='red', lty=4)
+abline(v=p2_flat, col='red', lty=4)
+legend(0.7, 6.4, col=c("red", "black", "red"), 
+       lty=c(4, 2, 4), bty='n', cex=1.2, x.intersp=0.1, y.intersp=1.2, 
+legend = c(parse(text = paste0(' p[1] == ', round(p1_flat, 3))),
+                  parse(text = paste0(' mode == ', round(flat.mode, 3))),
+                  parse(text = paste0(' p[2] == ', round(p2_flat, 3))))
+         )
+grid()
+plot(p, beta.post, xaxs='i', yaxs='i', type='l', lwd = 3, 
+     col = 'navy', main="Credibility Interval with Beta prior", 
+     cex.main=1.5, xlim=c(-0.05,1.05), ylim=c(0,6.4),
+     xlab="p", ylab="P(p | x, n, M)", cex.lab=1.2, las=1)
+abline(v=beta.mode, col='black', lty=2)
+abline(v=p1_beta, col='red', lty=4)
+abline(v=p2_beta, col='red', lty=4)
+legend(0.7, 6.4, col=c("red", "black", "red"), 
+       lty=c(4, 2, 4), bty='n', cex=1.2, x.intersp=0.1, y.intersp=1.2,      
+       legend = c(parse(text = paste0(' p[1] == ', round(p1_beta, 3))),
+                  parse(text = paste0(' mode == ', round(beta.mode, 3))),
+                  parse(text = paste0(' p[2] == ', round(p2_beta, 3))))
+         )
+grid()
+```
+
+```{r}
+#C) Repeat the same analysis assuming a sequential analysis of the data. Show how the most probable value and the credibility interval change as a function of the number of coin tosses (i.e. from 1 to 30).
+
+#starting number of successes
+r <- 0   
+#uniform prior for start 
+f.prior <- dbeta(p, 1, 1)    # for alpha and beta == 1 the beta distribution is a uniform distribution 
+b.prior <- dbeta(p, 10, 10)
+
+analysis <-function(pr) {
+  
+  #empty vectors 
+mode <- c()
+p1 <- c()
+p2 <- c()
+#tosses with H=1 and T=0
+tosses <- c(0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1)
+for (toss in tosses){
+  l <- dbinom(toss, 1, p)
+  supp <- l*pr
+  posterior <- supp/(delta.p*sum(supp))
+  mode <- append(mode, p[which.max(posterior)] )
+  cumulative <- cumsum(posterior)/n.sample
+  p1 <- append(p1, p[cumulative>=0.025][1])
+  p2 <- append(p2, p[cumulative>=0.975][1])
+  pr <- posterior
+  
+}
+
+#PLOTS
+plot(1:30, mode, xaxs='i', yaxs='i', type="o", lwd = 1.5, 
+     col = 'darkblue', main="Mode and 95% credibility interval sequential analysis", 
+     cex.main=1.5, xlim=c(0.5,30.5), ylim=c(-0.1,1),
+     xlab="Tosses", ylab="Mode", cex.lab=1.2, las = 1)
+
+polygon(c(1:30, 30:1), c(p1, rev(p2)), col = rgb(0.596, 1, 0.98, alpha=0.3), border = NA)                    
+lines(1:30, p1, lty='solid', lwd = 3, col='green')
+lines(1:30, p2, lty='solid', lwd = 3, col='green')
+points(30, mode[30], pch=19, col='navy',)
+legend('topright', col=c("darkblue", "navy", "green"), 
+       lty=c('solid', 'blank', 'solid'), pch=c(1,19,NA),
+       bty='n', cex=1,
+       legend = c("mode",
+                  parse(text = paste0(' mode [final] == ', round(mode[30], 6))),
+                  "C.I. boundaries")
+         )
+grid()
+  
+ parameters <- c(mode[30], p1[30], p2[30])
+ return(parameters)
+}
+par.f <- analysis(f.prior)
+par.b <- analysis(b.prior)
+
+```
+
+
+
+```{r}
+# D) Do you get a different result, by analyzing the data sequentially with respect to a one-step analysis?
+cat("==================================\n")
+cat("One-step analysis\n")
+cat("==================================\n")
+cat("Beta prior\n")
+cat("Mode = ", beta.mode,"\n95%C.I. = [", p1_beta, "; ", p2_beta,"]", '\n')
+cat("-----------------------------------\n")
+cat("Uniform prior \n")
+cat("Mode = ", flat.mode,"\n95%C.I. = [", p1_flat, "; ", p2_flat,"]", '\n\n')
+cat("===================================\n")
+cat("Sequential anlysis", '\n')
+cat("===================================\n")
+cat("Beta prior\n")
+cat("Mode = ", par.b[1],"\n95%C.I. = [", par.b[2], "; ", par.b[3],"]\n")
+cat("-----------------------------------\n")
+cat("Uniform prior \n")
+cat("Mode = ", par.f[1],"\n95%C.I. = [", par.f[2], "; ", par.f[3],"]", '\n\n')
+```
+
+The final results are almost equal to the one obtained with the whole data.
+However, one can observe that the credibility interval is a little bit narrower if we use a Beta prior, while for the uniform one and the sequential analysis we obtain the same boundaries.
+
+
