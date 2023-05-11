@@ -1,0 +1,247 @@
+---
+title: "final_project"
+author: "Tonazzo Valentina"
+date: '2022-07-07'
+output: html_document
+---
+
+Innanzitutto abbiamo letto dal file "train.csv" il dataset completo che viene convertito in un dataframe; quest'ultimo è composto da 3 colonne: "Text", una lista di characters contenente i testi da classificare, "Text_Tag", anch'essa una lista di characters che fornisce una breve descrizione riguardo i testi, e "Labels" una lista di interi da 0 a 5 che indicano le varie categorie di appartenenza dei testi:
+0) Barely-True
+1) False
+2) Half-True
+3) Mostly-True
+4) Not-Known
+5) True
+
+```{r}
+df <- read.csv("train.csv", header = TRUE)
+str(df)
+```
+
+Successivamente, da ogni testo contenuto nella colonna Text, vengono rimossi i character che corrispondono a numeri, punteggiatura e caratteri speciali, tramite la funzione gsub, e vengono sostituiti da una doppia spaziatura. (ricordarsi di spiegare perchè la doppia spaziatura)
+
+gsub(X = A vector or a data frame to replace the strings, Pattern = The pattern or the string which you want to be replaced, Replacement = A input string to replace the pattern string.)
+
+```{r}
+library(dplyr)
+library(tidytext)
+df$Text <- gsub(x = df$Text, pattern = "[0-9]+|[[:punct:]]|\\(.*\\)", replacement = "  ")   #serve per togliere i numeri, la punteggiatura e le parentesi ecc..
+```
+
+Tutto ciò viene fatto in modo da poter preparare i testi all'operazione di tokenizzazione:
+quest'ultima consiste nel prendere in input una stringa di characters (in questo caso un testo) e dividerla in "pezzi" che corrispondono a unità significative del testo (in questo caso parole). 
+
+```{r}
+#create token---> trasforma il testo in liste di parole, un'alternativa è la funzione unnest_tokens() 
+library(tokenizers)
+df$Text <- tokenize_words(df$Text)
+#typeof(df$Text[[1]]) #prova è una lista in cui ogni elemento è una lista di characters
+```
+
+Il passo successivo consiste nella rimozione delle cosiddette "Stopwords" ovvero quelle parole  il cui significato, di uso comune, non inflisce sul senso generico di una frase. Alcuni esempi sono gli articoli, i pronomi, i verbi ausiliari, e così via.  
+La libreria "stopwords" contiene delle liste di stopwords preimpostate secondo varie lingue, la cui specificità può variare in base alla source che si decide di utilizzare. 
+La funzione "my_func" opera una differenza logica tra due liste: la prima è una lista qualsiasi e la seconda corrisponde alla lista "stopwords-iso" della libreria "stopwords". 
+
+```{r}
+library("stopwords")
+SW = stopwords("en", source = "stopwords-iso")
+my_func <- function(lista1, lista2 = SW){lista <- setdiff(lista1, lista2)}
+df$Text <- lapply(df$Text[], my_func)
+```
+
+
+
+
+
+Ora il dataset può essere diviso in training e test set: il training set corrisponde al primo 70% del dataset iniziale il test set al restante 30%.
+
+```{r}
+#divido in train e test set 
+df.train <- df[1:(nrow(df)*0.7), ]
+df.test <- df[ (nrow(df)*0.7) : nrow(df) , ]
+#cat(str(df), str(df.train), str(df.test))
+```
+
+Qui abbiamo alcune costanti significative per il funzionamento dell'algoritmo:
+N corrisponde al numero totale di testi
+C è una lista contenente i labels per ogni testo (ovvero una lista di interi da 0 a 5)
+
+```{r}
+#sentences <- df$[1:length(prova)]
+N <- length(df.train$Text)  #tot number of texts
+C <- sort(df.train$Labels[!duplicated(df.train$Labels)]) #single labels
+#Ni <- aggregate(x = df, by = df$Labels, FUN = count)   <- per farlo senza il for
+```
+
+
+
+Il primo vero step per l'implementazione di un Naive Bayes Classifier è la creazione del vocabolario: concatenando tutti i testi presenti nel training set viene creata un'unica lista di tokens da cui vengono rimossi i termini che si ripetono in modo da ottenere le parole ripeute un'unica volta, proprio come in un vocabolario.  
+
+```{r}
+
+#creation of the vocabulary
+
+full_text <- c()                 #EVENTUALMENTE DA OTTIMIZZARE: raggrupo in un'unica lista tutti i testi insieme 
+
+  for (j in 1:N){
+    
+    full_text <- c(full_text,  df.train$Text[[j]])    #concatenazione di tutte le stringhe, ovvero tutti i testi 
+    
+  
+  }
+
+#str(full_text)
+#new_text <- lapply(full_text[], singularize)
+#str(new_text)
+vocabulary <- sort(full_text[!duplicated(full_text)]) #la funzione sort serve per ordinare le parole dall a alla z
+#str(vocabulary)
+#vocabulary <- lapply(vocabulary, singularize)
+#vocabulary <- vocabulary[!duplicated(vocabulary)]
+
+```
+
+
+```{r}
+#myfunc2 <- function(word){s <- singularize(word)}
+#neww <- lapply(full_text[], myfunc2)
+#neww
+```
+
+
+
+
+
+```{r}
+#the algorithm 
+library(dplyr)
+
+results <- c()
+for (c in C) {
+  
+  dfi <- filter(df.train, Labels == c)  #dataframe contenente tutti e soli i testi appartenenti alla stessa label
+  Ni <- length(dfi$Text)         #numero totale di questi testi
+  prior_i <- Ni/N              #prior uniforme per l'i-esima label
+  
+  textc <- c()                      #EVENTUALMENTE DA OTTIMIZZARE: raggrupo in un'unica lista tutti i testi insieme 
+  for (j in 1:length(dfi$Text)){
+    textc <- c(textc,  dfi$Text[[j]])
+  } 
+  
+  T.cts = as.data.frame(table(factor(textc)))      #frequency table for tokens in textc----> missing all tokens in general vocabulary
+  #print(T.cts)
+  
+  #searching for tokens in general vocabulary which are not present in vocabulary.i
+  vocabulary.i <- textc[!duplicated(textc)]
+  #vocabulary.i <- lapply(vocabulary.i, singularize)
+  #vocabulary.i <- vocabulary.i[!duplicated(vocabulary.i)]
+  diff.voc <- setdiff(vocabulary, vocabulary.i)
+  
+  #add to the frequency table missing tokens with frequencies equal to 0 
+  diff.df <- data.frame(Var1 = diff.voc, Freq = rep(0, length(diff.voc)))
+  
+  #cat(length(T.cts$Var1), length(diff.df),"\n")
+  T.cts.complete <- rbind(T.cts, diff.df)
+  #str(T.cts.complete)
+  
+  #calculating the conditional probability for each token 
+  cond.prob <- (T.cts.complete$Freq + 1)/ (sum(T.cts.complete$Freq) + length(vocabulary))
+  T.cts.complete$cond.prob <- cond.prob
+  T.cts.complete$prior <- prior_i
+  
+  #writing resuts in cvs files
+  write.csv(T.cts.complete, paste(c,"results.csv", sep=""), row.names = FALSE)
+  #print(T.cts.complete)
+}
+
+
+```
+
+
+
+```{r}
+
+#funzione per scorrere sulle parole di un testo
+parole <- function(parola,result.c){
+  
+  cont <- result.c[result.c$Var1 == parola, ]$cond.prob 
+  if(length(cont)> 0) {return(log(cont))}
+}
+#funzione per fare l'analisi sui vari dataframe delle 6 categorie
+read.func <-function(result.c, index){   #results.c è il dataframe che passo
+  
+  score.c <- log(result.c$prior[1])
+  score.c <- score.c + sum(unlist(lapply(df.test$Text[[index]], parole,result.c)))  #parole è una funzione che mi restituisce la somma delle log(cond.prob)
+}
+#funzione per scorrere su tutti i documenti del test set 
+read.doc <- function(doc.index, dataframes){
+  
+  tot.score <- c()
+  tot.score <- unlist(lapply(dataframes[],read.func,doc.index))
+  prediction <- which.max(tot.score)-1
+}
+
+
+```
+
+
+
+
+```{r}
+#application of the algorithm 
+mydata <- lapply( paste0(0:5,'results.csv'), read.csv ) #reading dataframes with statistics
+str(mydata)
+predictions <- sapply(1:nrow(df.test), read.doc, mydata)
+str(predictions)
+```
+
+
+```{r}
+print(str(mydata))
+print("***************")
+print(str(predictions))
+```
+
+
+
+
+```{r}
+comparison <- data.frame(Predictions = as.integer(predictions[-c(569,847,1261,2629)]) , Labels = df.test$Labels[-c(569,847,1261,2629)])  #in questi documenti non c'è nessun testo :) 
+good.ones <- comparison[comparison$Predictions == comparison$Labels,]
+cat("correct predictions percentage:",(length(good.ones$Labels)/length(comparison$Labels))*100,"%")
+
+```
+
+
+
+
+
+```{r}
+#install.packages('syn')
+library('syn')
+# put some examples here
+#syn("good")
+syn("male")
+# No words for spelling mistakes
+#syn("spolling misteak")
+
+```
+
+
+
+
+
+
+```{r}
+#install.packages('SemNetCleaner')
+library('SemNetCleaner')
+
+singularize("octopi")
+```
+
+
+
+
+
+
+
+
