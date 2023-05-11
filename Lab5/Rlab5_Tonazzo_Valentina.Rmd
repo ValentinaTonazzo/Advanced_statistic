@@ -1,0 +1,305 @@
+---
+title: "new"
+author: "Tonazzo Valentina"
+date: '2022-05-11'
+output: html_document
+---
+
+```{r}
+#EXERCISE 1 
+# A) suppose a uniform prior distribution for the parameter μ
+#    - determine and draw the posterior distribution for μ, given the data
+#    - evaluate mean, median and variance, both analytically and numerically in R
+
+# B) suppose a Jeffrey’s prior for the parameter μ:
+#    - determine and draw the posterior distribution for μ, given the data
+#    - evaluate mean, median and variance, both analytically and numerically in R
+
+# C) evaluate a 95% credibility interval for the results obtained with both priors. Compare the result
+#    with that obtained using a normal approximation for the posterior distribution, with the same mean
+#    and standard deviation
+
+
+#A function to evaluate the same parameters and plots for both priors
+analysis <- function(alpha, n, c){
+min <- 0
+max <- 5
+dmu <- 0.005
+mu <- seq(min, max, dmu)
+#THE POSTERIOR
+plot(mu, gamma.post <- dgamma(mu, alpha, n), type = 'l', lwd = 3, col = 'firebrick4', main =paste('Posterior distribution for',c,'Prior'), xlab = expression(mu), ylab =expression(paste("P(", mu, " | y )")), las= 1)
+grid()
+text(0, 0.5, expression(paste(alpha, " = \n" )))     #da sistemare 
+
+# MEAN, MEDIAN, VARIANCE 
+# Analytically:
+ana.mu <- alpha/n       #by definition: mean of gamma function
+ana.var <- alpha/(n^2)  #by definition: variance of gamma function 
+
+
+#Numerically:
+num.mu <- dmu*sum(mu*gamma.post)
+num.var <- dmu*sum((mu^2)*gamma.post) - (num.mu^2)
+num.median <- qgamma(0.5, alpha, n)
+
+#95% CREDIBILITY INTERVAL 
+ci1 <- qgamma(0.025, alpha, n)
+ci2 <- qgamma(0.975, alpha, n)
+
+cig1 <- qnorm(0.025, ana.mu, sqrt(ana.var))
+cig2 <- qnorm(0.975, ana.mu, sqrt(ana.var))
+
+
+cat("=============================\n")
+cat(c, "PRIOR \n")
+cat("=============================\n")
+cat("ANALYTICAL RESULTS\n")
+cat("-----------------------------\n")
+cat("mean:", ana.mu,"\nvariance:", ana.var)
+cat("\n---------------------------\n")
+cat("NUMERICAL RESULTS\n")
+cat("-----------------------------\n")
+cat("mean:", num.mu,"\nvariance:", num.var, "\nmedian:", num.median)
+cat("\n---------------------------\n")
+cat("95% CREDIBILITY INTERVAL:\n")
+cat("-----------------------------\n")
+cat("for current prior:          [",ci1,":",ci2,"]\nfor gaussian approximation: [",cig1,":",cig2,"]\n\n" )
+
+}
+
+
+#ACTUAL ANALYSIS 
+mesurements <- c(4, 1, 3, 1, 3)
+alpha.unif <- 1 + sum(mesurements)
+alpha.jeffrey <- 0.5  + sum(mesurements)
+n <- length(mesurements)
+analysis(alpha.unif,n,"UNIFORM")
+analysis(alpha.jeffrey,n, "JEFFREY'S")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+#EXERCISE 2
+#given the problem of the lightouse discussed last week, study the case in which both the position along the shore (α) and the distance out at sea (β) are unknown
+
+#posizione minima e massima lungo l'asse x
+x.min = -6     
+x.max = +6
+ #posizione minima e massima lungo l'asse y
+y.min = 0       
+y.max = 6
+
+#numero totale di steps lungo gli assi
+n.sample <- 200        
+
+#griglie per l'asse x e y
+alpha <- seq(x.min,x.max,length.out=n.sample)     
+beta  <- seq(y.min, y.max, length.out=n.sample)
+
+#posizione reale del faro <---selezionata a caso entro i range min e max per assi x e y 
+alpha.true = 2.1    
+beta.true = 3
+
+#numero di volte che ho rilevato un flash 
+n.detections <-c(2,5,10,30,80,100,200,500,2000) 
+
+# il logaritmo della likelyhood
+# siccome le rilevazioni sono tra loro indipendenti, la likelyhood totale sarà il prodotto delle singole probabilità, che in logaritmo diventa la somma 
+log.likelihood <- function(alpha, beta, data){
+    logL <- 0
+    for(x in data){
+        logL <- logL + log((1/pi)*(beta/(beta^2 + (x - alpha)^2)))
+    }
+    return(logL)
+}  #notiamo che per ora questa funzione prende come argomenti 2 numeri (alpha e beta) e un vettore (data)
+
+#le prior per alfa e beta, si tratta di distribuzioni uniformi (come nell'esempio in classe per alfa) nei range prestabiliti,
+#anche qui la distribuzione complessiva sarà il prodotto delle 2 distribuzioni che in logaritmo diventa la loro somma 
+log.prior <- function(alpha, beta){
+    return(log(dunif(alpha, x.min, x.max))+log(dunif(beta, y.min, y.max)))  
+}
+
+#le posteriors-->dal teorema di bayes prodotto di prior X likelyhood
+log.post <- function(alpha, beta, data) {
+    return(log.likelihood(alpha, beta ,data) + log.prior(alpha, beta))
+}
+
+#estraendo in modo random gli angoli di rilevazione che vengono poi convertiti in posizioni lungo l'asse x usando i dati reali di alfa e beta 
+Extraction <- function(detection){
+  
+  uniform.theta <- runif(detection, min=-pi/2, max=+pi/2)
+  data.true <- beta.true*tan(uniform.theta)+alpha.true
+
+  p.log.post <- outer(alpha, beta, Vectorize(function(alpha,beta) log.post(alpha, beta, data.true)))
+  #outer: dati 2 vettori applica il prodotto esterno secondo la funzione specificata nel terzo argomento. 
+  #---> crea una matrice l'argomento z della function contour necessita di una matrice ovvero i valori da plottare 
+  #Vectorize : data una funzione che prende in input un numero, restitusce una funzione che prende in input un vettore. 
+  
+  p.log.post <- p.log.post-max(p.log.post)
+  
+  p.log.post.normalized <- exp(p.log.post)/((x.max-x.min)*(y.max-y.min)/(n.sample^2) * sum(exp(p.log.post)))  #esponenzio e normalizzo la funzione 
+  estimated =which(p.log.post.normalized== max(p.log.post.normalized), arr.ind = TRUE) #stima numerica della posizione del faro: indice corrispondente al massimo della posterior  
+  
+  contour(alpha, beta, p.log.post.normalized,col ='gray48',xlab='alpha', ylab='beta', main=paste('Detections: ', detection))  #regioni con uguale probabilità 
+  
+  points(x = alpha.true, y = beta.true, pch = 3, col = 'red', lwd= 5) # plot of the true position 
+  points(estimated[1]*((x.max-x.min)/n.sample) - x.max , estimated[2]*y.max/n.sample, pch=4, col='green', lwd = 5 )
+  
+  grid()
+}
+
+lapply(n.detections, Extraction)
+
+
+```
+
+
+
+
+
+
+
+
+```{r}
+#EXERCISE 3
+# Vary the sampling resolution of used to generate the data keeping the same sampling range 
+
+# Generative model
+signal <- function (x, a, b, x0, w, t) {
+t * (a*exp (-(x-x0)^2/(2*w^2)) + b)
+}
+
+# Log posterior
+log.post <- function (d, x, a, b, x0, w, t) {
+  if(a<0 || b <0) { return (-Inf )}       # the effect of the prior
+  sum( dpois(d, lambda = signal (x, a, b, x0, w, t), log=TRUE ))
+
+}
+
+# Function to generate data 
+Generate <- function(r, x0 = 0, A.true = 2, B.true = 1, Delta.t = 5, w = 1 ){      #il modello viene definito direttamente nella funzione 
+  
+  # - Generate the observed data
+  xdat <- seq(from=-7*w, to=7*w, by=r*w)
+  s.true <- signal (xdat , A.true , B.true , x0, w, Delta.t)
+  ddat <- rpois( length (s.true), s.true)
+  xplot <- seq(from=min(xdat), to=max(xdat), by=0.05*w)
+  splot <- signal (xplot , A.true , B.true , x0, w, Delta.t)
+  plot(xplot , splot ,xlab="x", ylab="Signal + Background counts", las=1, main = paste("Resolution = ", r), type = 'l', lwd=2.5, col = 'navy')
+  par(new=TRUE)
+  xdat.off <- xdat - r/2
+  plot(xdat.off , ddat , type='s',col='firebrick 3',lwd=2,xlim=range ( xplot), ylim= range (c(splot , ddat )), ylab="", xlab="", yaxt="n", xaxt="n")
+  grid()
+  
+  # - Sampling grid for computing posterior
+  alim <- c(0.0, 5.0)
+  blim <- c(0.2, 2)
+  Nsamp <- 100
+  uniGrid <- seq(from=1/(2*Nsamp), to=1-1/(2*Nsamp), by=1/Nsamp )
+  delta_a <- diff(alim )/ Nsamp
+  delta_b <- diff(blim )/ Nsamp
+  a <- alim[1] + diff(alim )* uniGrid
+  b <- blim[1] + diff(blim )* uniGrid
+  
+  #Compute log unnormalized posterior , z = ln Pˆ*(a,b|D), on a regular grid
+  z <- matrix (data=NA , nrow= length (a), ncol= length (b))
+  for(j in 1: length (a)) {
+    for(k in 1: length (b)) {
+    z[j,k] <- log.post(ddat , xdat , a[j], b[k], x0, w, Delta.t)
+    }
+  }
+  z <- z - max(z) # set maximum to zero
+
+  # Plot unormalized 2D posterior as contours .
+  contour (a, b, exp(z), nlevels = 5, labcex = 0.5, lwd = 2, xlab="amplitude , A", ylab="background , B")
+  abline (v=2,h=1,col="grey")
+  
+  
+}
+
+r <- c(0.1, 0.25, 1, 2, 3)
+lapply( r, Generate)
+```
+
+
+Reducing the resolution means having fewer collected samples, while reducing the parameter r (increasing resolution) the results shows a more narrow posterior distribution centered on the true values A and B, as expected.  
+
+
+
+
+
+
+```{r}
+# Change the ratio A/B used to simulate data (keeping both positive in accordance to the prior)
+Generate2 <- function(A.true, x0 = 0, r = 0.5, B.true = 1, Delta.t = 5, w = 1 ){
+  
+  # - Generate the observed data
+  xdat <- seq(from=-7*w, to=7*w, by=r*w)
+  s.true <- signal (xdat , A.true , B.true , x0, w, Delta.t)
+  ddat <- rpois( length (s.true), s.true)
+  xplot <- seq(from=min(xdat), to=max(xdat), by=0.05*w)
+  splot <- signal (xplot , A.true , B.true , x0, w, Delta.t)
+  plot(xplot , splot ,xlab="x", ylab="Signal + Background counts", las=1, main = paste("A/B = ", A.true), type = 'l', lwd=2.5, col = 'navy')
+  par(new=TRUE)
+  xdat.off <- xdat - r/2
+  plot(xdat.off , ddat , type='s',col='firebrick 3',lwd=2,xlim=range ( xplot), ylim= range (c(splot , ddat )), ylab="", xlab="", yaxt="n", xaxt="n")
+  grid()
+  
+   # - Sampling grid for computing posterior
+  alim <- c(0.0, A.true+5)
+  blim <- c(0.2, 2)
+  Nsamp <- 100
+  uniGrid <- seq(from=1/(2*Nsamp), to=1-1/(2*Nsamp), by=1/Nsamp )
+  delta_a <- diff(alim )/ Nsamp
+  delta_b <- diff(blim )/ Nsamp
+  a <- alim[1] + diff(alim )* uniGrid
+  b <- blim[1] + diff(blim )* uniGrid
+  
+  # Compute log unnormalized posterior , z = ln Pˆ*(a,b|D), on a regular grid
+  z <- matrix (data=NA , nrow= length (a), ncol= length (b))
+  for(j in 1: length (a)) {
+    for(k in 1: length (b)) {
+
+    z[j,k] <- log.post(ddat , xdat , a[j], b[k], x0, w, Delta.t)
+
+    }
+  }
+  z <- z - max(z) # set maximum to zero
+
+  # Plot unnormalized 2D posterior as contours .
+  contour (a, b, exp(z), nlevels = 5,  labcex = 0.5,  lwd = 2,  xlab="amplitude , A",  ylab="background , B")
+  abline (v=2,h=1,col="grey")
+  
+  
+}
+
+A <- c(0.1, 0.25, 1, 2, 3, 50)
+lapply( A, Generate2)
+
+```
+
+Changing the ratio A/B means that the noise is less relevant and the signal more significant hence the posterior become more centered around the "true" amplitude value. 
+
+
+
+
+
+
+
+
+
+
+
+
+
